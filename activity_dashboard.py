@@ -1,432 +1,6 @@
 import os
 import json
 import glob
-import pandas as pd
-import numpy as np
-import streamlit as st
-import plotly.express as px
-import plotly.graph_objects as go
-from datetime import datetime, timedelta
-
-# Set page configuration
-st.set_page_config(
-    page_title="Fitness Activity Dashboard",
-    page_icon="🏃‍♂️",
-    layout="wide"
-)
-
-# Helper function to safely extract values from nested dictionaries
-def safe_get_value(data, keys, default=None):
-    """Safely navigate nested dictionaries and return values."""
-    if not isinstance(data, dict):
-        return default
-    
-    current = data
-    for key in keys:
-        if isinstance(current, dict) and key in current:
-            current = current[key]
-        else:
-            return default
-    return current
-
-# Helper function to parse datetime strings
-def parse_datetime(dt_str):
-    """Parse datetime string to datetime object."""
-    try:
-        if isinstance(dt_str, str):
-            # Handle ISO format datetime strings
-            return datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
-        return None
-    except (ValueError, TypeError):
-        return None
-
-# Function to extract metadata from activity files
-def extract_activity_metadata(file_path):
-    """Extract metadata from an activity file."""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
-        # Get activity type from filename (e.g., WALKING, BIKING, RUNNING)
-        activity_type = os.path.basename(file_path).split('_')[-1].split('.')[0]
-        
-        # Extract start and end times
-        start_time = parse_datetime(safe_get_value(data, ['startTime'], None))
-        end_time = parse_datetime(safe_get_value(data, ['endTime'], None))
-        
-        # If we can't get times, skip this activity
-        if not start_time or not end_time:
-            return None
-        
-        # Extract duration in minutes
-        duration_millis = safe_get_value(data, ['duration', 'millis'], 0)
-        duration_minutes = duration_millis / (1000 * 60)
-        
-        # Create activity record
-        activity = {
-            'file_path': file_path,
-            'activity_type': activity_type,
-            'start_time': start_time,
-            'end_time': end_time,
-            'duration_minutes': duration_minutes,
-            'has_route': False,
-            'route': []
-        }
-        
-        return activity
-    
-    except Exception as e:
-        print(f"Error processing {file_path}: {str(e)}")
-        return None
-
-# Function to extract location data
-def extract_location_data(file_path):
-    """Extract location data from a location file."""
-    location_data = []
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
-        # Look for data points
-        data_points = safe_get_value(data, ['Data Points'], [])
-        if not data_points:
-            return location_data
-        
-        for point in data_points:
-            try:
-                # Extract timestamp
-                timestamp_nanos = safe_get_value(point, ['startTimeNanos'], None)
-                if not timestamp_nanos:
-                    continue
-                
-                # Convert nanos to datetime
-                timestamp = datetime.fromtimestamp(int(timestamp_nanos) / 1e9)
-                
-                # Extract coordinates
-                fit_values = safe_get_value(point, ['fitValue'], [])
-                if len(fit_values) < 2:
-                    continue
-                
-                lat = safe_get_value(fit_values[0], ['value', 'fpVal'], None)
-                lng = safe_get_value(fit_values[1], ['value', 'fpVal'], None)
-                
-                if lat is None or lng is None:
-                    continue
-                
-                # Add to location data
-                location_data.append({
-                    'timestamp': timestamp,
-                    'latitude': lat,
-                    'longitude': lng
-                })
-            except Exception as e:
-                continue
-        
-        return location_data
-    
-    except Exception as e:
-        print(f"Error processing {file_path}: {str(e)}")
-        return location_data
-
-# Function to match activities with location data
-def match_activities_with_location(activities, location_data):
-    """Match activities with location data based on timestamps."""
-    # Convert location data to dataframe for easier querying
-    if not location_data:
-        return activities
-    
-    loc_df = pd.DataFrame(location_data)
-    if loc_df.empty:
-        return activities
-    
-    # Sort location data by timestamp
-    loc_df = loc_df.sort_values('timestamp')
-    
-    # For each activity, find matching location points
-    for i, activity in enumerate(activities):
-        start_time = activity['start_time']
-        end_time = activity['end_time']
-        
-        # Find location points within time range
-        matched_points = loc_df[(loc_df['timestamp'] >= start_time) & 
-                              (loc_df['timestamp'] <= end_time)]
-        
-        if not matched_points.empty:
-            route = matched_points[['timestamp', 'latitude', 'longitude']].to_dict('records')
-            activities[i]['has_route'] = True
-            activities[i]['route'] = route
-    
-    return activities
-
-# Function to load all activity data
-def load_activity_data(base_dir='./Takeout'):
-    """Load all activity data from Takeout directory."""
-    activities = []
-    location_data = []
-    
-    # Find all activity files
-    activity_files = []
-    for activity_type in ['WALKING', 'RUNNING', 'BIKING']:
-        pattern = os.path.join(base_dir, '**/Fit/Toutes les sessions/*_{}.json'.format(activity_type))
-        activity_files.extend(glob.glob(pattern, recursive=True))
-    
-    print(f"Found {len(activity_files)} activity files")
-    
-    # Extract metadata from activity files
-    for file_path in activity_files:
-        activity = extract_activity_metadata(file_path)
-        if activity:
-            activities.append(activity)
-    
-    # Find all location files
-    location_files = glob.glob(os.path.join(base_dir, '**/Fit/Toutes les données/derived_com.google.location*.json'), recursive=True)
-    print(f"Found {len(location_files)} location files")
-    
-    # Extract location data
-    for file_path in location_files:
-        location_data.extend(extract_location_data(file_path))
-    
-    print(f"Extracted {len(location_data)} location data points")
-    
-    # Match activities with location data
-    activities = match_activities_with_location(activities, location_data)
-    
-    # Count matches
-    matched_points = sum(len(a['route']) for a in activities if a['has_route'])
-    matched_activities = sum(1 for a in activities if a['has_route'])
-    print(f"Matched {matched_points} location points to {matched_activities} activities")
-    
-    # Convert to DataFrame
-    activities_df = pd.DataFrame(activities)
-    
-    return activities_df
-
-# Function to create activity overview section
-def create_activity_overview(activities_df):
-    """Create overview metrics for the dashboard."""
-    st.header("Activity Overview")
-    
-    if activities_df.empty:
-        st.warning("No activity data found.")
-        return
-    
-    # Create metrics for the overview
-    col1, col2, col3, col4 = st.columns(4)
-    
-    # Total activities
-    total_activities = len(activities_df)
-    col1.metric("Total Activities", total_activities)
-    
-    # Activities with routes
-    activities_with_routes = activities_df['has_route'].sum()
-    col2.metric("Activities with GPS Routes", activities_with_routes)
-    
-    # Date range
-    min_date = activities_df['start_time'].min().strftime('%Y-%m-%d')
-    max_date = activities_df['start_time'].max().strftime('%Y-%m-%d')
-    col3.metric("Date Range", f"{min_date} to {max_date}")
-    
-    # Total duration
-    total_duration = round(activities_df['duration_minutes'].sum())
-    col4.metric("Total Time (minutes)", total_duration)
-
-# Function to create activity type distribution chart
-def create_activity_type_distribution(activities_df):
-    """Create a chart showing distribution of activity types."""
-    st.header("Activity Type Distribution")
-    
-    if activities_df.empty:
-        st.warning("No activity data found.")
-        return
-    
-    activity_counts = activities_df['activity_type'].value_counts().reset_index()
-    activity_counts.columns = ['Activity Type', 'Count']
-    
-    fig = px.pie(
-        activity_counts, 
-        values='Count',
-        names='Activity Type',
-        title='Activity Distribution',
-        color_discrete_sequence=px.colors.qualitative.Safe
-    )
-    
-    fig.update_traces(textposition='inside', textinfo='percent+label')
-    st.plotly_chart(fig, use_container_width=True)
-
-# Function to create monthly trend chart
-def create_monthly_trend(activities_df):
-    """Create a chart showing monthly activity trends."""
-    st.header("Monthly Activity Trends")
-    
-    if activities_df.empty:
-        st.warning("No activity data found.")
-        return
-    
-    # Extract year-month from start_time
-    activities_df['year_month'] = activities_df['start_time'].dt.strftime('%Y-%m')
-    
-    # Group by year-month and activity_type
-    monthly_counts = activities_df.groupby(['year_month', 'activity_type']).size().reset_index(name='count')
-    
-    # Create the chart
-    fig = px.bar(
-        monthly_counts,
-        x='year_month',
-        y='count',
-        color='activity_type',
-        title='Monthly Activity Trends',
-        labels={'year_month': 'Month', 'count': 'Number of Activities', 'activity_type': 'Activity Type'}
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-
-# Function to create time of day chart
-def create_time_of_day_chart(activities_df):
-    """Create a chart showing activity by time of day."""
-    st.header("Activity by Time of Day")
-    
-    if activities_df.empty:
-        st.warning("No activity data found.")
-        return
-    
-    # Extract hour from start_time
-    activities_df['hour'] = activities_df['start_time'].dt.hour
-    
-    # Create time of day categories
-    time_bins = [0, 6, 12, 18, 24]
-    time_labels = ['Night (0-6)', 'Morning (6-12)', 'Afternoon (12-18)', 'Evening (18-24)']
-    activities_df['time_of_day'] = pd.cut(activities_df['hour'], bins=time_bins, labels=time_labels, right=False)
-    
-    # Group by time of day and activity type
-    tod_counts = activities_df.groupby(['time_of_day', 'activity_type']).size().reset_index(name='count')
-    
-    # Create the chart
-    fig = px.bar(
-        tod_counts,
-        x='time_of_day',
-        y='count',
-        color='activity_type',
-        title='Activity by Time of Day',
-        labels={'time_of_day': 'Time of Day', 'count': 'Number of Activities', 'activity_type': 'Activity Type'}
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-
-# Function to create day of week chart
-def create_day_of_week_chart(activities_df):
-    """Create a chart showing activity by day of week."""
-    st.header("Activity by Day of Week")
-    
-    if activities_df.empty:
-        st.warning("No activity data found.")
-        return
-    
-    # Extract day of week
-    activities_df['day_of_week'] = activities_df['start_time'].dt.day_name()
-    
-    # Set order of days
-    day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    
-    # Group by day of week and activity type
-    dow_counts = activities_df.groupby(['day_of_week', 'activity_type']).size().reset_index(name='count')
-    
-    # Create the chart
-    fig = px.bar(
-        dow_counts,
-        x='day_of_week',
-        y='count',
-        color='activity_type',
-        title='Activity by Day of Week',
-        labels={'day_of_week': 'Day of Week', 'count': 'Number of Activities', 'activity_type': 'Activity Type'},
-        category_orders={'day_of_week': day_order}
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-
-# Function to create route visualization
-def create_route_visualization(activities_df):
-    """Create a map showing routes for activities with GPS data."""
-    st.header("Activity Routes")
-    
-    if activities_df.empty:
-        st.warning("No activity data found.")
-        return
-    
-    # Filter activities with routes
-    routes_df = activities_df[activities_df['has_route']]
-    
-    if routes_df.empty:
-        st.warning("No activities with GPS routes found.")
-        return
-    
-    # Create map
-    fig = go.Figure()
-    
-    # Add routes to map
-    for _, activity in routes_df.iterrows():
-        route = activity['route']
-        if not route:
-            continue
-            
-        # Extract coordinates
-        lats = [point['latitude'] for point in route]
-        lngs = [point['longitude'] for point in route]
-        
-        # Create route line
-        fig.add_trace(go.Scattermapbox(
-            mode="lines",
-            lon=lngs,
-            lat=lats,
-            name=f"{activity['activity_type']} - {activity['start_time'].strftime('%Y-%m-%d %H:%M')}",
-            line=dict(width=2)
-        ))
-    
-    # Set map center (average of all points)
-    center_lat = np.mean([point['latitude'] for activity in routes_df['route'] for point in activity])
-    center_lng = np.mean([point['longitude'] for activity in routes_df['route'] for point in activity])
-    
-    # Update layout
-    fig.update_layout(
-        mapbox=dict(
-            style="open-street-map",
-            center=dict(lat=center_lat, lon=center_lng),
-            zoom=12
-        ),
-        margin=dict(l=0, r=0, t=0, b=0),
-        height=600
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-
-# Function to create duration comparison chart
-def create_duration_comparison(activities_df):
-    """Create a box plot of activity durations by type."""
-    st.header("Activity Duration Comparison")
-    
-    if activities_df.empty:
-        st.warning("No activity data found.")
-        return
-    
-    # Create box plot
-    fig = px.box(
-        activities_df,
-        x='activity_type',
-        y='duration_minutes',
-        color='activity_type',
-        title='Activity Duration Comparison',
-        labels={'activity_type': 'Activity Type', 'duration_minutes': 'Duration (minutes)'}
-    )
-
-#!/usr/bin/env python3
-"""
-Activity Dashboard for Google Takeout Fitness Data
-This script processes Google Takeout fitness data (BIKING, WALKING, RUNNING)
-and creates an interactive dashboard to visualize activity patterns and routes.
-"""
-
-import os
-import json
-import glob
 import datetime
 from datetime import timedelta
 from collections import defaultdict
@@ -435,7 +9,6 @@ import numpy as np
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
@@ -447,44 +20,48 @@ COLOR_MAP = {
     "RUNNING": "#d62728",  # Red
 }
 
+
 def find_activity_files(base_dir='.'):
     """
     Find all activity files (BIKING, WALKING, RUNNING) in the Takeout directory.
-    
+
     Args:
         base_dir: Base directory to start searching from
-        
+
     Returns:
         Dict mapping activity types to lists of file paths
     """
     activity_files = {activity_type: [] for activity_type in ACTIVITY_TYPES}
-    
+
     # Look for activity files in common Takeout directory structures
     patterns = [
         f"{base_dir}/**/Takeout/**/Fit/**/Sessions/**/*_{activity_type}.json",
         f"{base_dir}/**/Takeout/**/Fit/**/*_{activity_type}.json",
         f"{base_dir}/**/Takeout/Fit/**/*_{activity_type}.json",
     ]
-    
+
     for activity_type in ACTIVITY_TYPES:
         for pattern in patterns:
             found_files = glob.glob(pattern, recursive=True)
             activity_files[activity_type].extend(found_files)
-        
+
         # Remove duplicates while preserving order
-        activity_files[activity_type] = list(dict.fromkeys(activity_files[activity_type]))
-        
-        print(f"Found {len(activity_files[activity_type])} {activity_type} files")
-    
+        activity_files[activity_type] = list(
+            dict.fromkeys(activity_files[activity_type]))
+
+        print(
+            f"Found {len(activity_files[activity_type])} {activity_type} files")
+
     return activity_files
+
 
 def find_location_files(base_dir='.'):
     """
     Find all location sample files in the Takeout directory.
-    
+
     Args:
         base_dir: Base directory to start searching from
-        
+
     Returns:
         List of location file paths
     """
@@ -492,34 +69,35 @@ def find_location_files(base_dir='.'):
         f"{base_dir}/**/Takeout/**/derived_com.google.location.sample*.json",
         f"{base_dir}/**/Takeout/Fit/**/derived_com.google.location.sample*.json",
     ]
-    
+
     location_files = []
     for pattern in patterns:
         location_files.extend(glob.glob(pattern, recursive=True))
-    
+
     # Remove duplicates while preserving order
     location_files = list(dict.fromkeys(location_files))
     print(f"Found {len(location_files)} location files")
     return location_files
 
+
 def extract_activity_data(activity_files):
     """
     Extract metadata from activity files.
-    
+
     Args:
         activity_files: Dict mapping activity types to lists of file paths
-        
+
     Returns:
         List of activity data dictionaries
     """
     all_activities = []
-    
+
     for activity_type, files in activity_files.items():
         for file_path in files:
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                
+
                 # Extract basic information
                 activity = {
                     'type': activity_type,
@@ -529,18 +107,22 @@ def extract_activity_data(activity_files):
                     'end_time': data.get('endTime', ''),
                     'duration_ms': data.get('duration', {}).get('millis', 0),
                 }
-                
+
                 # Convert string dates to datetime objects
                 if activity['start_time']:
-                    start_dt = datetime.datetime.fromisoformat(activity['start_time'].replace('Z', '+00:00'))
+                    start_dt = datetime.datetime.fromisoformat(
+                        activity['start_time'].replace('Z', '+00:00'))
                     activity['start_dt'] = start_dt
-                    activity['start_time_nanos'] = int(start_dt.timestamp() * 1_000_000_000)
-                
+                    activity['start_time_nanos'] = int(
+                        start_dt.timestamp() * 1_000_000_000)
+
                 if activity['end_time']:
-                    end_dt = datetime.datetime.fromisoformat(activity['end_time'].replace('Z', '+00:00'))
+                    end_dt = datetime.datetime.fromisoformat(
+                        activity['end_time'].replace('Z', '+00:00'))
                     activity['end_dt'] = end_dt
-                    activity['end_time_nanos'] = int(end_dt.timestamp() * 1_000_000_000)
-                
+                    activity['end_time_nanos'] = int(
+                        end_dt.timestamp() * 1_000_000_000)
+
                 # Extract additional metrics if available
                 if 'aggregate' in data:
                     for metric in data['aggregate']:
@@ -551,34 +133,36 @@ def extract_activity_data(activity_files):
                         elif metric.get('metricName') == 'com.google.distance.delta':
                             activity['distance'] = metric.get('floatValue', 0)
                         elif metric.get('metricName') == 'com.google.heart_minutes.summary':
-                            activity['heart_minutes'] = metric.get('floatValue', 0)
-                
+                            activity['heart_minutes'] = metric.get(
+                                'floatValue', 0)
+
                 all_activities.append(activity)
             except Exception as e:
                 print(f"Error processing {file_path}: {e}")
-    
+
     # Sort by start time
     all_activities.sort(key=lambda x: x.get('start_dt', datetime.datetime.min))
     print(f"Extracted metadata for {len(all_activities)} activities")
     return all_activities
 
+
 def extract_location_data(location_files):
     """
     Extract location data from all location files.
-    
+
     Args:
         location_files: List of location file paths
-        
+
     Returns:
         List of location data points
     """
     all_location_data = []
-    
+
     for file_path in location_files:
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            
+
             # Extract location data points
             if 'Data Points' in data:
                 data_points = data['Data Points']
@@ -588,20 +172,24 @@ def extract_location_data(location_files):
                         try:
                             start_time_nanos = int(point['startTimeNanos'])
                             end_time_nanos = int(point['endTimeNanos'])
-                            
+
                             # Extract lat/long from fitValue array
                             if len(point['fitValue']) >= 2:
-                                lat = point['fitValue'][0]['value'].get('fpVal')
-                                lng = point['fitValue'][1]['value'].get('fpVal')
-                                
+                                lat = point['fitValue'][0]['value'].get(
+                                    'fpVal')
+                                lng = point['fitValue'][1]['value'].get(
+                                    'fpVal')
+
                                 # Some data points have optional accuracy and altitude
                                 accuracy = None
                                 altitude = None
                                 if len(point['fitValue']) >= 3:
-                                    accuracy = point['fitValue'][2]['value'].get('fpVal')
+                                    accuracy = point['fitValue'][2]['value'].get(
+                                        'fpVal')
                                 if len(point['fitValue']) >= 4:
-                                    altitude = point['fitValue'][3]['value'].get('fpVal')
-                                
+                                    altitude = point['fitValue'][3]['value'].get(
+                                        'fpVal')
+
                                 if lat is not None and lng is not None:
                                     loc_data = {
                                         'start_time_nanos': start_time_nanos,
@@ -618,36 +206,37 @@ def extract_location_data(location_files):
                             continue
         except Exception as e:
             print(f"Error processing location file {file_path}: {e}")
-    
+
     # Sort by timestamp
     all_location_data.sort(key=lambda x: x['start_time_nanos'])
     print(f"Extracted {len(all_location_data)} location data points")
     return all_location_data
 
+
 def match_locations_to_activities(activities, location_data, accuracy_threshold=30):
     """
     Match location data to activities based on timestamps.
-    
+
     Args:
         activities: List of activity data dictionaries
         location_data: List of location data points
         accuracy_threshold: Maximum GPS accuracy value (in meters) to include
-        
+
     Returns:
         Activities list with routes added
     """
     # Create a new list to store activities with routes
     activities_with_routes = []
-    
+
     # Count activities with routes
     activities_with_routes_count = 0
-    
+
     for activity in activities:
         # Skip activities missing timestamp data
         if 'start_time_nanos' not in activity or 'end_time_nanos' not in activity:
             activities_with_routes.append(activity)
             continue
-        
+
         # Find location points within the activity time range
         route_points = []
         for loc in location_data:
@@ -656,7 +245,7 @@ def match_locations_to_activities(activities, location_data, accuracy_threshold=
                 # Filter out low-accuracy points if accuracy data is available
                 if loc['accuracy'] is not None and loc['accuracy'] > accuracy_threshold:
                     continue
-                
+
                 route_points.append({
                     'latitude': loc['latitude'],
                     'longitude': loc['longitude'],
@@ -664,26 +253,28 @@ def match_locations_to_activities(activities, location_data, accuracy_threshold=
                     'accuracy': loc['accuracy'],
                     'altitude': loc['altitude']
                 })
-        
+
         # Add route to activity if we found matching points
         activity['route'] = route_points
         activity['has_route'] = len(route_points) > 0
-        
+
         if activity['has_route']:
             activities_with_routes_count += 1
-        
+
         activities_with_routes.append(activity)
-    
-    print(f"Matched location data to {activities_with_routes_count} activities")
+
+    print(
+        f"Matched location data to {activities_with_routes_count} activities")
     return activities_with_routes
+
 
 def create_activity_dataframe(activities):
     """
     Convert activity data to a pandas DataFrame for easier analysis.
-    
+
     Args:
         activities: List of activity data dictionaries
-        
+
     Returns:
         Pandas DataFrame with activity data
     """
@@ -709,36 +300,40 @@ def create_activity_dataframe(activities):
                 'date': activity['start_dt'].date()
             }
             data.append(row)
-    
+
     df = pd.DataFrame(data)
-    
+
     # Add day of week as categorical with proper order
-    days_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    df['day_of_week'] = pd.Categorical(df['day_of_week'], categories=days_order, ordered=True)
-    
+    days_order = ['Monday', 'Tuesday', 'Wednesday',
+                  'Thursday', 'Friday', 'Saturday', 'Sunday']
+    df['day_of_week'] = pd.Categorical(
+        df['day_of_week'], categories=days_order, ordered=True)
+
     return df
+
 
 def create_dashboard(df, activities):
     """
     Create a Streamlit dashboard to visualize activity data.
-    
+
     Args:
         df: Pandas DataFrame with activity data
         activities: List of activity data dictionaries with routes
     """
     # Set page title and configuration - moved to main() to avoid duplicate configuration
-    
+
     # Title and introduction
     st.title("Activity Dashboard")
-    st.markdown("This dashboard visualizes your fitness activities from Google Takeout data.")
-    
+    st.markdown(
+        "This dashboard visualizes your fitness activities from Google Takeout data.")
+
     # Get the start and end dates of the data
     min_date = df['start_time'].min().date()
     max_date = df['start_time'].max().date()
-    
+
     # Sidebar with filters
     st.sidebar.title("Filters")
-    
+
     # Activity type filter
     activity_types = df['activity_type'].unique().tolist()
     selected_types = st.sidebar.multiselect(
@@ -746,7 +341,7 @@ def create_dashboard(df, activities):
         options=activity_types,
         default=activity_types
     )
-    
+
     # Date range filter
     date_range = st.sidebar.date_input(
         "Date Range",
@@ -754,44 +349,47 @@ def create_dashboard(df, activities):
         min_value=min_date,
         max_value=max_date
     )
-    
+
     # Filter the dataframe based on selections
     filtered_df = df.copy()
-    
+
     if selected_types:
-        filtered_df = filtered_df[filtered_df['activity_type'].isin(selected_types)]
-    
+        filtered_df = filtered_df[filtered_df['activity_type'].isin(
+            selected_types)]
+
     if len(date_range) == 2:
         start_date, end_date = date_range
-        filtered_df = filtered_df[(filtered_df['date'] >= start_date) & (filtered_df['date'] <= end_date)]
-    
+        filtered_df = filtered_df[(filtered_df['date'] >= start_date) & (
+            filtered_df['date'] <= end_date)]
+
     # Overview statistics
     st.header("Activity Overview")
-    
+
     col1, col2, col3, col4 = st.columns(4)
-    
+
     with col1:
         st.metric("Total Activities", filtered_df.shape[0])
-    
+
     with col2:
-        st.metric("Date Range", f"{filtered_df['date'].min()} to {filtered_df['date'].max()}")
-    
+        st.metric(
+            "Date Range", f"{filtered_df['date'].min()} to {filtered_df['date'].max()}")
+
     with col3:
         activities_with_routes = filtered_df[filtered_df['has_route']].shape[0]
         st.metric("Activities with Routes", activities_with_routes)
-    
+
     with col4:
         total_duration = filtered_df['duration_minutes'].sum()
         st.metric("Total Duration", f"{total_duration:.1f} minutes")
-    
+
     # Activity counts by type
     st.subheader("Activity Counts by Type")
     activity_counts = filtered_df['activity_type'].value_counts().reset_index()
     activity_counts.columns = ['Activity Type', 'Count']
-    
+
     fig = px.bar(
-        activity_counts, 
-        x='Activity Type', 
+        activity_counts,
+        x='Activity Type',
         y='Count',
         color='Activity Type',
         color_discrete_map=COLOR_MAP,
@@ -799,13 +397,14 @@ def create_dashboard(df, activities):
     )
     fig.update_layout(showlegend=False)
     st.plotly_chart(fig, use_container_width=True)
-    
+
     # Monthly activity distribution
     st.header("Activity Patterns")
-    
+
     # Group by month and activity type
-    monthly_counts = filtered_df.groupby(['year_month', 'activity_type']).size().reset_index(name='count')
-    
+    monthly_counts = filtered_df.groupby(
+        ['year_month', 'activity_type']).size().reset_index(name='count')
+
     # Continue with the dashboard implementation
     # Create a monthly trend chart
     fig = px.line(
@@ -814,100 +413,112 @@ def create_dashboard(df, activities):
         y='count',
         color='activity_type',
         title='Monthly Activity Trends',
-        labels={'count': 'Number of Activities', 'year_month': 'Month', 'activity_type': 'Activity Type'}
-    )\r
-    st.plotly_chart(fig, use_container_width=True)\r
+        labels={'count': 'Number of Activities',
+                'year_month': 'Month', 'activity_type': 'Activity Type'}
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-# Remove duplicate function definitions\r
+# Remove duplicate function definitions
+
 
 def process_all_data():
     """Process all activity and location data"""
     print("Finding activity files...")
-    activity_files = find_activity_files(base_dir)\r
-    total_files = sum(len(files) for files in activity_files.values())\r
-    print(f"Found {total_files} activity files")\r
-    
+    activity_files = find_activity_files(base_dir)
+    total_files = sum(len(files) for files in activity_files.values())
+    print(f"Found {total_files} activity files")
+
     print("Finding location files...")
     location_files = find_location_files()
     print(f"Found {len(location_files)} location files")
-    
-    print("Extracting activity metadata...")\r
-    activities = extract_activity_data(activity_files)\r
+
+    print("Extracting activity metadata...")
+    activities = extract_activity_data(activity_files)
     print(f"Extracted metadata for {len(activities)} activities")
-    
+
     print("Extracting location data...")
     location_data = extract_location_data(location_files)
     print(f"Extracted {len(location_data)} location data points")
-    
+
     print("Matching locations to activities...")
-    activities_with_routes = match_locations_to_activities(activities, location_data)
-    
+    activities_with_routes = match_locations_to_activities(
+        activities, location_data)
+
     # Count activities with routes
-    activities_with_routes_count = sum(1 for a in activities_with_routes if len(a.get("route", [])) > 0)
-    print(f"Matched location data to {activities_with_routes_count} activities")
-    
+    activities_with_routes_count = sum(
+        1 for a in activities_with_routes if len(a.get("route", [])) > 0)
+    print(
+        f"Matched location data to {activities_with_routes_count} activities")
+
     return activities_with_routes
 
 # Dashboard Visualization Functions
+
+
 def create_activity_overview(activities):
     """Create overview statistics for the dashboard"""
     st.header("Activity Overview")
-    
+
     # Calculate overview statistics
     total_activities = len(activities)
-    activities_with_routes = sum(1 for a in activities if len(a.get("route", [])) > 0)
-    total_duration_mins = sum(a.get("duration_ms", 0) for a in activities) / (1000 * 60)
-    
+    activities_with_routes = sum(
+        1 for a in activities if len(a.get("route", [])) > 0)
+    total_duration_mins = sum(a.get("duration_ms", 0)
+                              for a in activities) / (1000 * 60)
+
     # Get date range
-    start_dates = [datetime.fromisoformat(a["start_time"].replace("Z", "+00:00")) 
-                  for a in activities if a.get("start_time")]
+    start_dates = [datetime.fromisoformat(a["start_time"].replace("Z", "+00:00"))
+                   for a in activities if a.get("start_time")]
     if start_dates:
         min_date = min(start_dates).strftime("%Y-%m-%d")
         max_date = max(start_dates).strftime("%Y-%m-%d")
         date_range = f"{min_date} to {max_date}"
     else:
         date_range = "N/A"
-    
+
     # Activity counts by type
     activity_types = {}
     for a in activities:
         activity_type = a.get("activity_type", "UNKNOWN")
-        activity_types[activity_type] = activity_types.get(activity_type, 0) + 1
-    
+        activity_types[activity_type] = activity_types.get(
+            activity_type, 0) + 1
+
     # Create columns for statistics
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         st.metric("Total Activities", total_activities)
         st.metric("Date Range", date_range)
-    
+
     with col2:
         st.metric("Activities with GPS Routes", activities_with_routes)
         st.metric("Total Duration (hours)", f"{total_duration_mins/60:.1f}")
-    
+
     with col3:
         for activity_type, count in activity_types.items():
             st.metric(f"{activity_type} Activities", count)
 
+
 def create_monthly_chart(activities):
     """Create a monthly activity chart"""
     st.header("Monthly Activity Distribution")
-    
+
     # Prepare data
     monthly_data = defaultdict(lambda: defaultdict(int))
-    
+
     for activity in activities:
         if not activity.get("start_time"):
             continue
-        
+
         try:
-            start_time = datetime.fromisoformat(activity["start_time"].replace("Z", "+00:00"))
+            start_time = datetime.fromisoformat(
+                activity["start_time"].replace("Z", "+00:00"))
             month_key = start_time.strftime("%Y-%m")
             activity_type = activity.get("activity_type", "UNKNOWN")
             monthly_data[month_key][activity_type] += 1
         except Exception as e:
             print(f"Error processing activity for monthly chart: {e}")
-    
+
     # Convert to DataFrame
     df_data = []
     for month, type_counts in monthly_data.items():
@@ -917,45 +528,47 @@ def create_monthly_chart(activities):
                 "Activity Type": activity_type,
                 "Count": count
             })
-    
+
     df = pd.DataFrame(df_data)
-    
+
     if not df.empty:
         # Sort by month
         df["Month"] = pd.to_datetime(df["Month"])
         df = df.sort_values("Month")
         df["Month"] = df["Month"].dt.strftime("%Y-%m")
-        
+
         # Create the chart
         fig = px.bar(
-            df, 
-            x="Month", 
-            y="Count", 
+            df,
+            x="Month",
+            y="Count",
             color="Activity Type",
             title="Activities per Month",
             labels={"Count": "Number of Activities", "Month": "Month"},
             barmode="group"
         )
-        
+
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("No data available for monthly chart")
 
+
 def create_time_of_day_chart(activities):
     """Create a time of day analysis chart"""
     st.header("Time of Day Analysis")
-    
+
     # Prepare data
     time_data = defaultdict(lambda: defaultdict(int))
-    
+
     for activity in activities:
         if not activity.get("start_time"):
             continue
-        
+
         try:
-            start_time = datetime.fromisoformat(activity["start_time"].replace("Z", "+00:00"))
+            start_time = datetime.fromisoformat(
+                activity["start_time"].replace("Z", "+00:00"))
             hour = start_time.hour
-            
+
             # Define time of day
             if 5 <= hour < 12:
                 time_of_day = "Morning (5-12)"
@@ -965,12 +578,12 @@ def create_time_of_day_chart(activities):
                 time_of_day = "Evening (17-22)"
             else:
                 time_of_day = "Night (22-5)"
-            
+
             activity_type = activity.get("activity_type", "UNKNOWN")
             time_data[time_of_day][activity_type] += 1
         except Exception as e:
             print(f"Error processing activity for time of day chart: {e}")
-    
+
     # Convert to DataFrame
     df_data = []
     for time_of_day, type_counts in time_data.items():
@@ -980,50 +593,55 @@ def create_time_of_day_chart(activities):
                 "Activity Type": activity_type,
                 "Count": count
             })
-    
+
     df = pd.DataFrame(df_data)
-    
+
     if not df.empty:
         # Sort by time of day
-        time_order = ["Morning (5-12)", "Afternoon (12-17)", "Evening (17-22)", "Night (22-5)"]
-        df["Time of Day"] = pd.Categorical(df["Time of Day"], categories=time_order, ordered=True)
+        time_order = ["Morning (5-12)", "Afternoon (12-17)",
+                      "Evening (17-22)", "Night (22-5)"]
+        df["Time of Day"] = pd.Categorical(
+            df["Time of Day"], categories=time_order, ordered=True)
         df = df.sort_values("Time of Day")
-        
+
         # Create the chart
         fig = px.bar(
-            df, 
-            x="Time of Day", 
-            y="Count", 
+            df,
+            x="Time of Day",
+            y="Count",
             color="Activity Type",
             title="Activities by Time of Day",
-            labels={"Count": "Number of Activities", "Time of Day": "Time of Day"},
+            labels={"Count": "Number of Activities",
+                    "Time of Day": "Time of Day"},
             barmode="group"
         )
-        
+
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("No data available for time of day chart")
 
+
 def create_day_of_week_chart(activities):
     """Create a day of week analysis chart"""
     st.header("Activities by Day of Week")
-    
+
     # Prepare data
     day_data = defaultdict(lambda: defaultdict(int))
-    
+
     for activity in activities:
         if not activity.get("start_time"):
             continue
-        
+
         try:
-            start_time = datetime.fromisoformat(activity["start_time"].replace("Z", "+00:00"))
+            start_time = datetime.fromisoformat(
+                activity["start_time"].replace("Z", "+00:00"))
             day_of_week = start_time.strftime("%A")
-            
+
             activity_type = activity.get("activity_type", "UNKNOWN")
             day_data[day_of_week][activity_type] += 1
         except Exception as e:
             print(f"Error processing activity for day of week chart: {e}")
-    
+
     # Convert to DataFrame
     df_data = []
     for day_of_week, type_counts in day_data.items():
@@ -1033,68 +651,73 @@ def create_day_of_week_chart(activities):
                 "Activity Type": activity_type,
                 "Count": count
             })
-    
+
     df = pd.DataFrame(df_data)
-    
+
     if not df.empty:
         # Sort by day of week
-        day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        df["Day of Week"] = pd.Categorical(df["Day of Week"], categories=day_order, ordered=True)
+        day_order = ["Monday", "Tuesday", "Wednesday",
+                     "Thursday", "Friday", "Saturday", "Sunday"]
+        df["Day of Week"] = pd.Categorical(
+            df["Day of Week"], categories=day_order, ordered=True)
         df = df.sort_values("Day of Week")
-        
+
         # Create the chart
         fig = px.bar(
-            df, 
-            x="Day of Week", 
-            y="Count", 
+            df,
+            x="Day of Week",
+            y="Count",
             color="Activity Type",
             title="Activities by Day of Week",
-            labels={"Count": "Number of Activities", "Day of Week": "Day of Week"},
+            labels={"Count": "Number of Activities",
+                    "Day of Week": "Day of Week"},
             barmode="group"
         )
-        
+
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("No data available for day of week chart")
 
+
 def create_duration_comparison(activities):
     """Create a duration comparison chart for different activity types"""
     st.header("Activity Duration Comparison")
-    
+
     # Prepare data
     duration_data = []
-    
+
     for activity in activities:
         if not activity.get("duration_ms"):
             continue
-        
+
         try:
             duration_mins = activity.get("duration_ms", 0) / (1000 * 60)
             activity_type = activity.get("activity_type", "UNKNOWN")
-            
+
             duration_data.append({
                 "Activity Type": activity_type,
                 "Duration (minutes)": duration_mins
             })
         except Exception as e:
             print(f"Error processing activity for duration comparison: {e}")
-    
+
     # Create DataFrame for duration analysis
     df = pd.DataFrame(duration_data)
     if not df.empty:
         # Create the chart
         fig = px.box(
-            df, 
-            x="Activity Type", 
-            y="Duration (minutes)", 
+            df,
+            x="Activity Type",
+            y="Duration (minutes)",
             color="Activity Type",
             title="Activity Duration Distribution"
         )
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("No data available for duration comparison chart")
-    
+
     return df
+
 
 # Configuration constants
 ACTIVITY_COLORS = {
@@ -1103,46 +726,50 @@ ACTIVITY_COLORS = {
     "RUNNING": "#d62728",  # red
 }
 
+
 def find_activity_files(root_dir, activity_types=None):
     """Find all activity files in the Takeout directory"""
     if activity_types is None:
         activity_types = ["BIKING", "WALKING", "RUNNING"]
-    
+
     all_files = []
     for activity_type in activity_types:
         pattern = os.path.join(root_dir, "**", f"*_{activity_type}.json")
         files = glob.glob(pattern, recursive=True)
         all_files.extend(files)
-    
+
     print(f"Found {len(all_files)} activity files")
     return all_files
 
+
 def find_location_files(root_dir):
     """Find all location sample files in the Takeout directory"""
-    pattern = os.path.join(root_dir, "**", "derived_com.google.location.sample*.json")
+    pattern = os.path.join(
+        root_dir, "**", "derived_com.google.location.sample*.json")
     files = glob.glob(pattern, recursive=True)
     print(f"Found {len(files)} location files")
     return files
 
+
 def extract_activity_data(activity_files):
     """Extract metadata from all activity files"""
     activities = []
-    
+
     for file_path in activity_files:
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
                 data = json.load(file)
-                
+
                 # Determine activity type from filename
                 activity_type = file_path.split('_')[-1].split('.')[0]
-                
+
                 # Extract basic metadata
                 start_time = data.get('startTime')
                 end_time = data.get('endTime')
                 duration_millis = 0
                 if isinstance(data.get('duration'), dict):
                     duration_millis = data.get('duration', {}).get('millis', 0)
-                
+
                 # Initialize aggregate data
                 aggregate = {}
                 # Extract aggregate metrics - handle different possible formats
@@ -1150,7 +777,7 @@ def extract_activity_data(activity_files):
                     aggregate = data.get('aggregate')[0]
                 elif isinstance(data.get('aggregate'), dict):
                     aggregate = data.get('aggregate')
-                
+
                 activity = {
                     'activity_type': activity_type,
                     'start_time': start_time,
@@ -1165,36 +792,49 @@ def extract_activity_data(activity_files):
                     if activity_type == "BIKING":
                         # Safely extract values using helper functions
                         if isinstance(aggregate, dict):
-                            activity['calories'] = _safe_get_value(aggregate, 'calories')
-                            activity['heart_minutes'] = _safe_get_value(aggregate, 'heartMinutes')
+                            activity['calories'] = _safe_get_value(
+                                aggregate, 'calories')
+                            activity['heart_minutes'] = _safe_get_value(
+                                aggregate, 'heartMinutes')
                     elif activity_type == "WALKING":
                         if isinstance(aggregate, dict):
-                            activity['steps'] = _safe_get_value(aggregate, 'steps')
-                            activity['calories'] = _safe_get_value(aggregate, 'calories')
-                            activity['heart_minutes'] = _safe_get_value(aggregate, 'heartMinutes')
-                            activity['distance_meters'] = _safe_get_value(aggregate, 'distance', 'meters')
+                            activity['steps'] = _safe_get_value(
+                                aggregate, 'steps')
+                            activity['calories'] = _safe_get_value(
+                                aggregate, 'calories')
+                            activity['heart_minutes'] = _safe_get_value(
+                                aggregate, 'heartMinutes')
+                            activity['distance_meters'] = _safe_get_value(
+                                aggregate, 'distance', 'meters')
                     elif activity_type == "RUNNING":
                         if isinstance(aggregate, dict):
-                            activity['steps'] = _safe_get_value(aggregate, 'steps')
-                            activity['calories'] = _safe_get_value(aggregate, 'calories')
-                            activity['heart_minutes'] = _safe_get_value(aggregate, 'heartMinutes')
-                            activity['distance_meters'] = _safe_get_value(aggregate, 'distance', 'meters')
+                            activity['steps'] = _safe_get_value(
+                                aggregate, 'steps')
+                            activity['calories'] = _safe_get_value(
+                                aggregate, 'calories')
+                            activity['heart_minutes'] = _safe_get_value(
+                                aggregate, 'heartMinutes')
+                            activity['distance_meters'] = _safe_get_value(
+                                aggregate, 'distance', 'meters')
                 except Exception as e:
-                    print(f"Error extracting metrics for {activity_type} activity: {e}")
-                    activity['distance_meters'] = aggregate.get('distance', {}).get('meters', 0)
-                
+                    print(
+                        f"Error extracting metrics for {activity_type} activity: {e}")
+                    activity['distance_meters'] = aggregate.get(
+                        'distance', {}).get('meters', 0)
+
                 activities.append(activity)
         except Exception as e:
             print(f"Error processing {file_path}: {e}")
-    
+
     print(f"Extracted metadata from {len(activities)} activities")
     return activities
+
 
 def _safe_get_value(data_dict, key, nested_key=None):
     """Safely extract a value from a dictionary, handling various structures"""
     if not isinstance(data_dict, dict):
         return 0
-    
+
     # Handle case where the value is directly accessible
     if key in data_dict:
         if isinstance(data_dict[key], (int, float)):
@@ -1203,7 +843,7 @@ def _safe_get_value(data_dict, key, nested_key=None):
             return data_dict[key][nested_key]
         elif isinstance(data_dict[key], dict) and 'value' in data_dict[key]:
             return data_dict[key]['value']
-    
+
     # Handle case where the data might be in a list of metrics
     if isinstance(data_dict, dict) and 'metrics' in data_dict and isinstance(data_dict['metrics'], list):
         for metric in data_dict['metrics']:
@@ -1212,18 +852,19 @@ def _safe_get_value(data_dict, key, nested_key=None):
                     return metric['floatValue']
                 elif 'intValue' in metric:
                     return metric['intValue']
-    
+
     return 0
+
 
 def extract_location_data(location_files):
     """Extract location data from all location sample files"""
     location_data = []
-    
+
     for file_path in location_files:
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
                 data = json.load(file)
-                
+
                 # Process data points - handle different possible formats
                 if "Data Points" in data:
                     for point in data["Data Points"]:
@@ -1233,84 +874,90 @@ def extract_location_data(location_files):
                                 # Safely extract latitude and longitude
                                 lat_val = None
                                 lon_val = None
-                                
+
                                 # Handle different potential structures
                                 if isinstance(point["fitValue"][0], dict) and "value" in point["fitValue"][0]:
                                     if isinstance(point["fitValue"][0]["value"], dict) and "fpVal" in point["fitValue"][0]["value"]:
                                         lat_val = point["fitValue"][0]["value"]["fpVal"]
                                     elif isinstance(point["fitValue"][0]["value"], (int, float)):
                                         lat_val = point["fitValue"][0]["value"]
-                                
+
                                 if isinstance(point["fitValue"][1], dict) and "value" in point["fitValue"][1]:
                                     if isinstance(point["fitValue"][1]["value"], dict) and "fpVal" in point["fitValue"][1]["value"]:
                                         lon_val = point["fitValue"][1]["value"]["fpVal"]
                                     elif isinstance(point["fitValue"][1]["value"], (int, float)):
                                         lon_val = point["fitValue"][1]["value"]
-                            
+
                             if lat_val is not None and lon_val is not None:
-                                timestamp_nanos = point.get("startTimeNanos")\r
-                                \r
-                                if timestamp_nanos:\r
-                                    # Convert to numeric and add to location data\r
-                                    timestamp_nanos = int(timestamp_nanos)\r
-                                    location_data.append({\r
-                                        'latitude': lat_val,\r
-                                        'longitude': lon_val,\r
-                                        'timestamp_nanos': timestamp_nanos,\r
-                                        'timestamp': datetime.datetime.fromtimestamp(timestamp_nanos / 1e9)\r
-                                    })\r
-        except Exception as e:\r
-            print(f"Error processing location file {file_path}: {e}")\r
-    \r
-    # Sort by timestamp\r
-    location_data.sort(key=lambda x: x['timestamp_nanos'])\r
-    print(f"Extracted {len(location_data)} location data points")\r
-    return location_data\r
+                                timestamp_nanos = point.get("startTimeNanos")
+
+                                if timestamp_nanos:
+                                    # Convert to numeric and add to location data
+                                    timestamp_nanos = int(timestamp_nanos)
+                                    location_data.append({
+                                        'latitude': lat_val,
+                                        'longitude': lon_val,
+                                        'timestamp_nanos': timestamp_nanos,
+                                        'timestamp': datetime.datetime.fromtimestamp(timestamp_nanos / 1e9)
+                                    })
+                        except Exception as e:
+                            print(
+                                f"Error processing location file {file_path}: {e}")
+    # Sort by timestamp
+    location_data.sort(key=lambda x: x['timestamp_nanos'])
+    print(f"Extracted {len(location_data)} location data points")
+    return location_data
+
+
 def match_activities_with_location(activities, location_data):
     """Match activities with location data based on timestamps"""
     matched_count = 0
     total_points_matched = 0
-    
+
     for activity in activities:
         if not activity['start_time'] or not activity['end_time']:
             continue
-        
+
         # Convert ISO timestamps to nanoseconds
         try:
-            # Convert ISO timestamps to nanoseconds\r
-            start_nanos = int(datetime.datetime.fromisoformat(activity['start_time'].replace('Z', '+00:00')).timestamp() * 1e9)\r
-            end_nanos = int(datetime.datetime.fromisoformat(activity['end_time'].replace('Z', '+00:00')).timestamp() * 1e9)\r
-        except Exception as e:\r
-            print(f"Error converting timestamps: {e}")\r
-            continue\r
+            # Convert ISO timestamps to nanoseconds
+            start_nanos = int(datetime.datetime.fromisoformat(
+                activity['start_time'].replace('Z', '+00:00')).timestamp() * 1e9)
+            end_nanos = int(datetime.datetime.fromisoformat(
+                activity['end_time'].replace('Z', '+00:00')).timestamp() * 1e9)
+        except Exception as e:
+            print(f"Error converting timestamps: {e}")
+            continue
         # Find location points within the activity timeframe
         route_points = []
         for point in location_data:
-            if start_nanos <= point['timestamp_nanos'] <= end_nanos:\r
-                route_points.append({\r
-                    'latitude': point['latitude'],\r
-                    'longitude': point['longitude'],\r
-                    'timestamp_nanos': point['timestamp_nanos']\r
-                })\r
+            if start_nanos <= point['timestamp_nanos'] <= end_nanos:
+                route_points.append({
+                    'latitude': point['latitude'],
+                    'longitude': point['longitude'],
+                    'timestamp_nanos': point['timestamp_nanos']
                 })
-        
+
         # Add route to activity if points found
         if route_points:
             activity['has_route'] = True
             activity['route'] = route_points
             matched_count += 1
             total_points_matched += len(route_points)
-    
-    print(f"Matched {total_points_matched} location points to {matched_count} activities")
+
+    print(
+        f"Matched {total_points_matched} location points to {matched_count} activities")
     return activities
+
+
 def preprocess_data(activities):
     """Create pandas DataFrames for easier data manipulation"""
     # Filter out activities with missing start_time
     valid_activities = [a for a in activities if a.get('start_time')]
-    
+
     # Create DataFrame
     activities_df = pd.DataFrame(valid_activities)
-    
+
     # Handle empty DataFrame case
     if activities_df.empty:
         # Create empty DataFrame with expected columns
@@ -1320,52 +967,70 @@ def preprocess_data(activities):
             'hour', 'day_of_week', 'month_year', 'time_of_day', 'day_name'
         ])
         return activities_df
-    
+
     # Add date-related columns
     if 'start_time' in activities_df.columns:
         # Handle potential errors in datetime conversion
         try:
-            activities_df['date'] = pd.to_datetime(activities_df['start_time'], errors='coerce').dt.date
-            activities_df['year'] = pd.to_datetime(activities_df['start_time'], errors='coerce').dt.year
-            activities_df['month'] = pd.to_datetime(activities_df['start_time'], errors='coerce').dt.month
-            activities_df['day'] = pd.to_datetime(activities_df['start_time'], errors='coerce').dt.day
-            activities_df['hour'] = pd.to_datetime(activities_df['start_time'], errors='coerce').dt.hour
-            activities_df['day_of_week'] = pd.to_datetime(activities_df['start_time'], errors='coerce').dt.dayofweek
-            activities_df['day_of_week'] = pd.to_datetime(activities_df['start_time'], errors='coerce').dt.dayofweek\r
-            activities_df['month_year'] = pd.to_datetime(activities_df['start_time'], errors='coerce').dt.strftime('%Y-%m')\r
-            \r
-            # Time of day category\r
-            activities_df['time_of_day'] = pd.cut(\r
-            bins=[0, 6, 12, 18, 24],
-            labels=['Night (0-6)', 'Morning (6-12)', 'Afternoon (12-18)', 'Evening (18-24)']
-        )
-        
-        # Day of week name
-        activities_df['day_name'] = pd.to_datetime(activities_df['start_time']).dt.day_name()
-    
+            activities_df['date'] = pd.to_datetime(
+                activities_df['start_time'], errors='coerce').dt.date
+            activities_df['year'] = pd.to_datetime(
+                activities_df['start_time'], errors='coerce').dt.year
+            activities_df['month'] = pd.to_datetime(
+                activities_df['start_time'], errors='coerce').dt.month
+            activities_df['day'] = pd.to_datetime(
+                activities_df['start_time'], errors='coerce').dt.day
+            activities_df['hour'] = pd.to_datetime(
+                activities_df['start_time'], errors='coerce').dt.hour
+            activities_df['day_of_week'] = pd.to_datetime(
+                activities_df['start_time'], errors='coerce').dt.dayofweek
+            activities_df['day_of_week'] = pd.to_datetime(
+                activities_df['start_time'], errors='coerce').dt.dayofweek
+            activities_df['month_year'] = pd.to_datetime(
+                activities_df['start_time'], errors='coerce').dt.strftime('%Y-%m')
+
+            # Time of day category
+            activities_df['time_of_day'] = pd.cut(
+                activities_df['hour'],
+                bins=[0, 6, 12, 18, 24],
+                labels=['Night (0-6)', 'Morning (6-12)',
+                        'Afternoon (12-18)', 'Evening (18-24)']
+            )
+
+            # Day of week name
+            activities_df['day_name'] = pd.to_datetime(
+                activities_df['start_time']).dt.day_name()
+        except Exception as e:
+            print(f"Error processing datetime columns: {e}")
+        except Exception as e:
+            print(f"Error processing datetime columns: {e}")
+
     return activities_df
+
 
 def create_dashboard(activities_df):
     """Create Streamlit dashboard"""
     st.title("🏃‍♂️ Activity Dashboard")
     st.write("Comprehensive analysis of all your activity data from Google Takeout")
-    
+
     # Show overview stats
     st.header("Overview")
-    
+
     col1, col2, col3, col4 = st.columns(4)
-    
+
     with col1:
         st.metric("Total Activities", f"{len(activities_df)}")
-    
+
     with col2:
         # Safely handle activities_df
         if 'activity_type' in activities_df.columns:
-            activity_types = activities_df['activity_type'].value_counts().to_dict()
-            st.metric("Activity Types", ", ".join(f"{k}: {v}" for k, v in activity_types.items()))
+            activity_types = activities_df['activity_type'].value_counts(
+            ).to_dict()
+            st.metric("Activity Types", ", ".join(
+                f"{k}: {v}" for k, v in activity_types.items()))
         else:
             st.metric("Activity Types", "No data")
-    
+
     with col3:
         # Safely handle date range
         if 'date' in activities_df.columns and not activities_df['date'].isna().all():
@@ -1373,149 +1038,163 @@ def create_dashboard(activities_df):
             st.metric("Date Range", date_range)
         else:
             st.metric("Date Range", "No data")
-    
+
     with col4:
         activities_with_routes = activities_df['has_route'].sum()
-        st.metric("Activities with GPS", f"{activities_with_routes} ({activities_with_routes/len(activities_df):.1%})")
-    
+        st.metric("Activities with GPS",
+                  f"{activities_with_routes} ({activities_with_routes/len(activities_df):.1%})")
+
     # Activity breakdown
     st.header("Activity Breakdown")
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         fig = px.pie(
-            activities_df, 
-            names='activity_type', 
+            activities_df,
+            names='activity_type',
             title="Activities by Type",
             color='activity_type',
             color_discrete_map=ACTIVITY_COLORS
         )
         st.plotly_chart(fig)
-    
+
     with col2:
-        monthly_activities = activities_df.groupby(['month_year', 'activity_type']).size().reset_index(name='count')
+        monthly_activities = activities_df.groupby(
+            ['month_year', 'activity_type']).size().reset_index(name='count')
         fig = px.bar(
-            monthly_activities, 
-            x='month_year', 
-            y='count', 
+            monthly_activities,
+            x='month_year',
+            y='count',
             color='activity_type',
             title="Monthly Activity Distribution",
             labels={'month_year': 'Month', 'count': 'Number of Activities'},
             color_discrete_map=ACTIVITY_COLORS
         )
         st.plotly_chart(fig)
-    
+
     # Time analysis
     st.header("Time Analysis")
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
-        time_of_day = activities_df.groupby(['time_of_day', 'activity_type']).size().reset_index(name='count')
+        time_of_day = activities_df.groupby(
+            ['time_of_day', 'activity_type']).size().reset_index(name='count')
         fig = px.bar(
-            time_of_day, 
-            x='time_of_day', 
-            y='count', 
+            time_of_day,
+            x='time_of_day',
+            y='count',
             color='activity_type',
             title="Activities by Time of Day",
-            labels={'time_of_day': 'Time of Day', 'count': 'Number of Activities'},
+            labels={'time_of_day': 'Time of Day',
+                    'count': 'Number of Activities'},
             color_discrete_map=ACTIVITY_COLORS
         )
         st.plotly_chart(fig)
-    
+
     with col2:
-        day_of_week = activities_df.groupby(['day_name', 'activity_type']).size().reset_index(name='count')
+        day_of_week = activities_df.groupby(
+            ['day_name', 'activity_type']).size().reset_index(name='count')
         # Sort by day of week
-        day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-        day_of_week['day_name'] = pd.Categorical(day_of_week['day_name'], categories=day_order, ordered=True)
+        day_order = ['Monday', 'Tuesday', 'Wednesday',
+                     'Thursday', 'Friday', 'Saturday', 'Sunday']
+        day_of_week['day_name'] = pd.Categorical(
+            day_of_week['day_name'], categories=day_order, ordered=True)
         day_of_week = day_of_week.sort_values('day_name')
-        
+
         fig = px.bar(
-            day_of_week, 
-            x='day_name', 
-            y='count', 
+            day_of_week,
+            x='day_name',
+            y='count',
             color='activity_type',
             title="Activities by Day of Week",
-            labels={'day_name': 'Day of Week', 'count': 'Number of Activities'},
+            labels={'day_name': 'Day of Week',
+                    'count': 'Number of Activities'},
             color_discrete_map=ACTIVITY_COLORS
         )
         st.plotly_chart(fig)
-    
+
     # Duration analysis
     st.header("Duration Analysis")
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         fig = px.box(
-            activities_df, 
-            x='activity_type', 
+            activities_df,
+            x='activity_type',
             y='duration_minutes',
             color='activity_type',
             title="Activity Duration Distribution",
-            labels={'duration_minutes': 'Duration (minutes)', 'activity_type': 'Activity Type'},
+            labels={
+                'duration_minutes': 'Duration (minutes)', 'activity_type': 'Activity Type'},
             color_discrete_map=ACTIVITY_COLORS
         )
         st.plotly_chart(fig)
-    
+
     with col2:
         # Calculate average duration by month and activity type
-        monthly_duration = activities_df.groupby(['month_year', 'activity_type'])['duration_minutes'].mean().reset_index()
+        monthly_duration = activities_df.groupby(['month_year', 'activity_type'])[
+            'duration_minutes'].mean().reset_index()
         fig = px.line(
-            monthly_duration, 
-            x='month_year', 
-            y='duration_minutes', 
+            monthly_duration,
+            x='month_year',
+            y='duration_minutes',
             color='activity_type',
             title="Average Duration by Month",
-            labels={'month_year': 'Month', 'duration_minutes': 'Average Duration (minutes)'},
+            labels={'month_year': 'Month',
+                    'duration_minutes': 'Average Duration (minutes)'},
             color_discrete_map=ACTIVITY_COLORS
         )
         st.plotly_chart(fig)
-    
+
     # Route visualization
     st.header("Route Visualization")
-    
+
     # Filter to activities with route data
-    activities_with_routes = activities_df[activities_df['has_route'] == True].copy()
-    
+    activities_with_routes = activities_df[activities_df['has_route'] == True].copy(
+    )
+
     if not activities_with_routes.empty:
         # Create a map with all routes
         fig = go.Figure()
-        
+
         for idx, activity in activities_with_routes.iterrows():
             route = activity['route']
             if route and len(route) > 0:
                 latitudes = [point['latitude'] for point in route]
                 longitudes = [point['longitude'] for point in route]
-                
+
                 fig.add_trace(go.Scattermapbox(
                     lat=latitudes,
                     lon=longitudes,
                     mode='lines',
-                    line=dict(width=2, color=ACTIVITY_COLORS.get(activity['activity_type'], '#636EFA')),
+                    line=dict(width=2, color=ACTIVITY_COLORS.get(
+                        activity['activity_type'], '#636EFA')),
                     name=f"{activity['activity_type']} on {activity['date']}",
                     showlegend=True
                 ))
-        
+
         fig.update_layout(
             mapbox=dict(
                 style="open-street-map",
                 zoom=10,
                 center=dict(
-                    lat=np.mean([point['latitude'] for activity in activities_with_routes.itertuples() 
+                    lat=np.mean([point['latitude'] for activity in activities_with_routes.itertuples()
                                 for point in activity.route]) if len(activities_with_routes) > 0 else 0,
-                    lon=np.mean([point['longitude'] for activity in activities_with_routes.itertuples() 
+                    lon=np.mean([point['longitude'] for activity in activities_with_routes.itertuples()
                                 for point in activity.route]) if len(activities_with_routes) > 0 else 0
                 )
             ),
             height=600,
             margin=dict(l=0, r=0, t=0, b=0)
         )
-        
+
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("No activities with GPS route data available to display on the map.")
+
 
 def main():
     """
@@ -1528,39 +1207,42 @@ def main():
         layout="wide",
         initial_sidebar_state="expanded",
     )
-    
+
     st.sidebar.title("Activity Dashboard")
-    st.sidebar.info("Analyze and visualize your activity data from Google Takeout.")
-    
+    st.sidebar.info(
+        "Analyze and visualize your activity data from Google Takeout.")
+
     # Set default Takeout directory
     default_dir = "./Takeout"
-    takeout_dir = st.sidebar.text_input("Takeout directory path", value=default_dir)
-    
+    takeout_dir = st.sidebar.text_input(
+        "Takeout directory path", value=default_dir)
+
     # Processing status placeholder
     status = st.sidebar.empty()
-    
+
     # Load data button
     if st.sidebar.button("Load Data"):
         status.info("Finding activity files...")
         activity_files = find_activity_files(takeout_dir)
-        
+
         status.info("Finding location files...")
         location_files = find_location_files(takeout_dir)
-        
+
         status.info("Extracting activity data...")
         activities = extract_activity_data(activity_files)
-        
+
         status.info("Extracting location data...")
         location_data = extract_location_data(location_files)
-        
+
         status.info("Matching activities with location data...")
-        activities_with_routes = match_activities_with_location(activities, location_data)
-        
-        status.info("Preprocessing data...")\r
+        activities_with_routes = match_activities_with_location(
+            activities, location_data)
+
+        status.info("Preprocessing data...")
         activities_df = preprocess_data(activities_with_routes)
-        
+
         status.success("Data loaded successfully!")
-        
+
         # Create the dashboard with the data
         create_dashboard(activities_df)
     else:
@@ -1587,5 +1269,32 @@ def main():
         - Day of week patterns
         - Activity routes on a map (when GPS data is available)
         """)
+
+
+def find_google_maps_history(base_dir='.'):
+    """
+    Find all Google Maps history files in the Takeout directory.
+
+    Args:
+        base_dir: Base directory to start searching from
+
+    Returns:
+        List of Google Maps history file paths
+    """
+    patterns = [
+        f"{base_dir}/**/Takeout/**/Location History/**/*.json",
+        f"{base_dir}/**/Takeout/Location History/**/*.json",
+    ]
+
+    history_files = []
+    for pattern in patterns:
+        history_files.extend(glob.glob(pattern, recursive=True))
+
+    # Remove duplicates while preserving order
+    history_files = list(dict.fromkeys(history_files))
+    print(f"Found {len(history_files)} Google Maps history files")
+    return history_files
+
+
 if __name__ == "__main__":
     main()
