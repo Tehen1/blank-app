@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TrainingCenterDatabase
+    xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"
+    xmlns:ns2="http://www.garmin.com/xmlschemas/UserProfile/v2"
+    xmlns:ns3="http://www.garmin.com/xmlschemas/ActivityExtension/v2"
+    xmlns:ns4="http://www.garmin.com/xmlschemas/ProfileExtension/v1"
+    xmlns:ns5="http://www.garmin.com/xmlschemas/ActivityGoals/v1"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2 http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd">
+    <Activities>
+        <Activity Sport="Walking">
+            <Id>2022-06-30T12:49:38.473Z</Id>
+            <Lap StartTime="2022-06-30T12:49:38.473Z">
+                <Track>
+                    <Trackpoint>
+                        <DistanceMeters>0.0</DistanceMeters>
+                        <Time>2022-06-30T12:49:38.473Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>80.93765258789062</DistanceMeters>
+                        <Time>2022-06-30T12:52:31.691Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>80.93765258789062</DistanceMeters>
+                        <Time>2022-06-30T12:53:48.473Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>157.57709503173828</DistanceMeters>
+                        <Time>2022-06-30T12:54:48.794Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>243.81531524658203</DistanceMeters>
+                        <Time>2022-06-30T12:55:49.161Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>327.91571044921875</DistanceMeters>
+                        <Time>2022-06-30T12:56:49.461Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>414.15826416015625</DistanceMeters>
+                        <Time>2022-06-30T12:57:49.821Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>500.4552536010742</DistanceMeters>
+                        <Time>2022-06-30T12:58:50.100Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>586.6881561279297</DistanceMeters>
+                        <Time>2022-06-30T12:59:50.475Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>674.178840637207</DistanceMeters>
+                        <Time>2022-06-30T13:00:50.621Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>756.2192993164062</DistanceMeters>
+                        <Time>2022-06-30T13:01:50.766Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>789.8893623352051</DistanceMeters>
+                        <Time>2022-06-30T13:02:51.842Z</Time>
+                    </Trackpoint>
+                </Track>
+                <DistanceMeters>789.8893623352051</DistanceMeters>
+                <TotalTimeSeconds>793.368322276</TotalTimeSeconds>
+                <Calories>45.822265625</Calories>
+                <Intensity>Active</Intensity>
+                <TriggerMethod>Manual</TriggerMethod>
+            </Lap>
+        </Activity>
+    </Activities>
+    <Author xsi:type="Application_t">
+        <Name>Google Fit</Name>
+        <Build>
+            <Version>
+                <VersionMajor>0</VersionMajor>
+                <VersionMinor>0</VersionMinor>
+                <BuildMajor>0</BuildMajor>
+                <BuildMinor>0</BuildMinor>
+            </Version>
+        </Build>
+        <LangID>en</LangID>
+        <PartNumber>000-00000-00</PartNumber>
+    </Author>
+</TrainingCenterDatabase>

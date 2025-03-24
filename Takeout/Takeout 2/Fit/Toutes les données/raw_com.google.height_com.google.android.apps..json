@@ -1,0 +1,6 @@
+{
+    "Data Source": "raw:com.google.height:com.google.android.apps.fitness:user_input",
+    "Data Points": [
+        {"fitValue":[{"value":{"fpVal":1.7300000190734863}}],"originDataSourceId":"","endTimeNanos":1657102860201000000,"dataTypeName":"com.google.height","startTimeNanos":1657102860201000000,"modifiedTimeMillis":1657102875312,"rawTimestampNanos":0}
+    ]
+}

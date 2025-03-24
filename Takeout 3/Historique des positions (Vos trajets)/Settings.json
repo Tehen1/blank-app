@@ -1,0 +1,51 @@
+{
+  "createdTime": "2022-07-01T19:30:42.921Z",
+  "modifiedTime": "2024-10-04T05:32:34.436Z",
+  "deviceSettings": [{
+    "deviceTag": -1435627114,
+    "reportingEnabled": false,
+    "legalCountryCode": "be",
+    "devicePrettyName": "iPhone",
+    "platformType": "IOS",
+    "deviceCreationTime": "2024-04-01T01:20:03.848Z",
+    "latestLocationReportingSettingChange": {
+      "reportingEnabledModificationTime": "2024-04-01T01:20:03.848Z"
+    },
+    "iosVersion": "18.1.1",
+    "deviceSpec": {
+      "device": "iPhone14,4"
+    },
+    "deviceActiveness": {
+      "hasSavedTimelineData": false,
+      "observedPlaceVisitsFor30PercentOfTheLast7d": false
+    }
+  }],
+  "hasReportedLocations": false,
+  "hasSetRetention": true,
+  "storeVisitControl": {
+    "enabled": true,
+    "updateTime": "2024-10-04T05:32:34.436050302Z"
+  },
+  "timelineEditUploadsControl": {
+    "enabled": true,
+    "updateTime": "2024-10-04T05:30:10.660530495Z"
+  },
+  "encryptedBackupsControls": {
+    "-1435627114": {
+      "enabled": false
+    }
+  },
+  "retentionControl": {
+    "retentionWindowDays": 2147483647,
+    "updateTime": "2024-10-04T05:31:01.340084900Z"
+  },
+  "timelineEnabled": true,
+  "timelineDeletionTime": "2024-04-02T12:17:46.930Z",
+  "latestTimelineSettingChange": {
+    "timelineEnabledModificationTime": "2024-10-04T05:30:40.933Z"
+  },
+  "googleOpinionRewardsControl": {
+    "enabled": false,
+    "updateTime": "2024-08-09T02:07:38.000024216Z"
+  }
+}

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TrainingCenterDatabase
+    xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"
+    xmlns:ns2="http://www.garmin.com/xmlschemas/UserProfile/v2"
+    xmlns:ns3="http://www.garmin.com/xmlschemas/ActivityExtension/v2"
+    xmlns:ns4="http://www.garmin.com/xmlschemas/ProfileExtension/v1"
+    xmlns:ns5="http://www.garmin.com/xmlschemas/ActivityGoals/v1"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2 http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd">
+    <Activities>
+        <Activity Sport="Walking">
+            <Id>2023-09-15T16:13:28.773Z</Id>
+            <Lap StartTime="2023-09-15T16:13:28.773Z">
+                <Track>
+                    <Trackpoint>
+                        <DistanceMeters>0.0</DistanceMeters>
+                        <Time>2023-09-15T16:13:28.773Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>40.31650034053017</DistanceMeters>
+                        <Time>2023-09-15T16:13:59.487Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>122.56528058958996</DistanceMeters>
+                        <Time>2023-09-15T16:15:00.024Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>198.58777608429602</DistanceMeters>
+                        <Time>2023-09-15T16:16:00.421Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>282.11214522041485</DistanceMeters>
+                        <Time>2023-09-15T16:17:00.646Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>363.40648554921006</DistanceMeters>
+                        <Time>2023-09-15T16:18:01.005Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>440.4425006025821</DistanceMeters>
+                        <Time>2023-09-15T16:19:01.443Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>523.8897038027069</DistanceMeters>
+                        <Time>2023-09-15T16:20:01.786Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>541.7583580112732</DistanceMeters>
+                        <Time>2023-09-15T16:20:14.045Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>608.5995139612022</DistanceMeters>
+                        <Time>2023-09-15T16:21:01.864Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>628.4912277108846</DistanceMeters>
+                        <Time>2023-09-15T16:21:14.424Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>693.9197591760886</DistanceMeters>
+                        <Time>2023-09-15T16:22:01.107Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>726.0466295823503</DistanceMeters>
+                        <Time>2023-09-15T16:23:16.642Z</Time>
+                    </Trackpoint>
+                </Track>
+                <DistanceMeters>726.0466295823503</DistanceMeters>
+                <TotalTimeSeconds>587.869</TotalTimeSeconds>
+                <Calories>43.43698722222222</Calories>
+                <Intensity>Active</Intensity>
+                <TriggerMethod>Manual</TriggerMethod>
+            </Lap>
+        </Activity>
+    </Activities>
+    <Author xsi:type="Application_t">
+        <Name>Google Fit</Name>
+        <Build>
+            <Version>
+                <VersionMajor>0</VersionMajor>
+                <VersionMinor>0</VersionMinor>
+                <BuildMajor>0</BuildMajor>
+                <BuildMinor>0</BuildMinor>
+            </Version>
+        </Build>
+        <LangID>en</LangID>
+        <PartNumber>000-00000-00</PartNumber>
+    </Author>
+</TrainingCenterDatabase>
