@@ -1,0 +1,261 @@
+{"trips": [
+  {
+    "id": "40972DBFF2A55FEC",
+    "place_visit": [
+      {
+        "id": "SOURCE_ID",
+        "place": {"semantic_type": "TYPE_HOME"}
+      },
+      {
+        "id": "DESTINATION_ID",
+        "place": {
+          "lat_lng": {
+            "latitude": 51.0774693,
+            "longitude": 2.6023784
+          },
+          "semantic_type": "TYPE_UNKNOWN"
+        }
+      }
+    ],
+    "transition": [{
+      "route": {
+        "travel_mode": "TRANSIT",
+        "transit": {"route": {"leg": [
+          {
+            "mode": "WALKING",
+            "destination": "LIEGE Rue J. d'Outremeuse"
+          },
+          {
+            "mode": "TRANSIT",
+            "destination": "LIEGE Gare des Guillemins - Quai A"
+          },
+          {
+            "mode": "TRANSIT",
+            "destination": "Gare de Gand-Saint-Pierre"
+          },
+          {
+            "mode": "TRANSIT",
+            "destination": "La Panne"
+          },
+          {"mode": "WALKING"}
+        ]}}
+      },
+      "origin": {"visit_id": "SOURCE_ID"},
+      "destination": {"visit_id": "DESTINATION_ID"}
+    }]
+  },
+  {
+    "id": "40972E9E7774C5A1",
+    "place_visit": [
+      {"id": "SOURCE_ID"},
+      {
+        "id": "DESTINATION_ID",
+        "place": {
+          "lat_lng": {
+            "latitude": 51.0333745,
+            "longitude": 2.3790951
+          },
+          "semantic_type": "TYPE_UNKNOWN"
+        }
+      }
+    ],
+    "transition": [{
+      "route": {"travel_mode": "DRIVE"},
+      "origin": {"visit_id": "SOURCE_ID"},
+      "destination": {"visit_id": "DESTINATION_ID"}
+    }]
+  },
+  {
+    "id": "46996981FB641F87",
+    "place_visit": [
+      {
+        "id": "SOURCE_ID",
+        "place": {"semantic_type": "TYPE_HOME"}
+      },
+      {
+        "id": "DESTINATION_ID",
+        "place": {
+          "lat_lng": {
+            "latitude": 50.6223514,
+            "longitude": 5.601852
+          },
+          "semantic_type": "TYPE_UNKNOWN"
+        }
+      }
+    ],
+    "transition": [{
+      "route": {
+        "travel_mode": "TRANSIT",
+        "transit": {"route": {"leg": [
+          {
+            "mode": "WALKING",
+            "destination": "LIEGE Monument Tchantchès"
+          },
+          {
+            "mode": "TRANSIT",
+            "destination": "GRIVEGNEE Place H. Denis"
+          },
+          {"mode": "WALKING"}
+        ]}}
+      },
+      "origin": {"visit_id": "SOURCE_ID"},
+      "destination": {"visit_id": "DESTINATION_ID"}
+    }]
+  },
+  {
+    "id": "4F5594D56821012B",
+    "place_visit": [
+      {
+        "id": "SOURCE_ID",
+        "place": {
+          "lat_lng": {
+            "latitude": 50.640884183959486,
+            "longitude": 5.582783575090314
+          },
+          "semantic_type": "TYPE_UNKNOWN"
+        }
+      },
+      {
+        "id": "DESTINATION_ID",
+        "place": {
+          "lat_lng": {
+            "latitude": 50.1599997,
+            "longitude": 5.2671953
+          },
+          "semantic_type": "TYPE_UNKNOWN"
+        }
+      }
+    ],
+    "transition": [{
+      "route": {
+        "travel_mode": "TRANSIT",
+        "transit": {"route": {"leg": [
+          {
+            "mode": "WALKING",
+            "destination": "LIEGE Rue J. d'Outremeuse"
+          },
+          {
+            "mode": "TRANSIT",
+            "destination": "LIEGE Gare des Guillemins - Quai B"
+          },
+          {
+            "mode": "TRANSIT",
+            "destination": "Namur"
+          },
+          {
+            "mode": "TRANSIT",
+            "destination": "Gare de Jemelle"
+          },
+          {"mode": "WALKING"}
+        ]}}
+      },
+      "origin": {"visit_id": "SOURCE_ID"},
+      "destination": {"visit_id": "DESTINATION_ID"}
+    }]
+  },
+  {
+    "id": "4F55D776DC9E3C52",
+    "place_visit": [
+      {
+        "id": "SOURCE_ID",
+        "place": {
+          "lat_lng": {
+            "latitude": 50.62427307949459,
+            "longitude": 5.56611419655901
+          },
+          "semantic_type": "TYPE_UNKNOWN"
+        }
+      },
+      {
+        "id": "DESTINATION_ID",
+        "place": {
+          "lat_lng": {
+            "latitude": 50.1599997,
+            "longitude": 5.2671953
+          },
+          "semantic_type": "TYPE_UNKNOWN"
+        }
+      }
+    ],
+    "transition": [{
+      "route": {
+        "travel_mode": "TRANSIT",
+        "transit": {"route": {"leg": [
+          {
+            "mode": "WALKING",
+            "destination": "Liège-Guillemins"
+          },
+          {
+            "mode": "TRANSIT",
+            "destination": "Namur"
+          },
+          {
+            "mode": "TRANSIT",
+            "destination": "Gare de Jemelle"
+          },
+          {"mode": "WALKING"}
+        ]}}
+      },
+      "origin": {"visit_id": "SOURCE_ID"},
+      "destination": {"visit_id": "DESTINATION_ID"}
+    }]
+  },
+  {
+    "recurrence": {"weekly_pattern": {"day": [
+      {"day": 1},
+      {"day": 2},
+      {"day": 3},
+      {"day": 4},
+      {"day": 5}
+    ]}},
+    "id": "commute_to_home",
+    "place_visit": [
+      {
+        "departure_timing": {"time": {
+          "hour": 17,
+          "minute": 0,
+          "second": 0
+        }},
+        "id": "27C7EFFA8269D853",
+        "place": {"semantic_type": "TYPE_WORK"}
+      },
+      {
+        "id": "27C7EFFA82F30E2E",
+        "place": {"semantic_type": "TYPE_HOME"}
+      }
+    ],
+    "transition": [{
+      "origin": {"visit_id": "27C7EFFA8269D853"},
+      "destination": {"visit_id": "27C7EFFA82F30E2E"}
+    }]
+  },
+  {
+    "recurrence": {"weekly_pattern": {"day": [
+      {"day": 1},
+      {"day": 2},
+      {"day": 3},
+      {"day": 4},
+      {"day": 5}
+    ]}},
+    "id": "commute_to_work",
+    "place_visit": [
+      {
+        "id": "27C7EFFA64BCE956",
+        "place": {"semantic_type": "TYPE_HOME"}
+      },
+      {
+        "id": "27C7EFFA68E9E1AB",
+        "place": {"semantic_type": "TYPE_WORK"},
+        "arrival_timing": {"time": {
+          "hour": 9,
+          "minute": 0,
+          "second": 0
+        }}
+      }
+    ],
+    "transition": [{
+      "origin": {"visit_id": "27C7EFFA64BCE956"},
+      "destination": {"visit_id": "27C7EFFA68E9E1AB"}
+    }]
+  }
+]}

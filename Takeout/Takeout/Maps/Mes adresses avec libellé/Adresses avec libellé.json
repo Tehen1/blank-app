@@ -1,0 +1,59 @@
+{
+  "features": [
+    {
+      "geometry": {
+        "coordinates": [
+          5.5825983,
+          50.640811799999994
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "address": "Rue Puits-en-Sock 20, 4020 Liège, Belgique",
+        "name": "Domicile"
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -8.8697594,
+          30.4634134
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "name": "Professionnel"
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          5.580786799999999,
+          50.6519978
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "name": "Chambre"
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          2.2023044,
+          41.390367999999995
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "address": "Platja Nova Icaria, Passeig Marítim de la Nova Icària, 08005 Barcelona, Espagne",
+        "name": "Playa"
+      },
+      "type": "Feature"
+    }
+  ],
+  "type": "FeatureCollection"
+}

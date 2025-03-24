@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TrainingCenterDatabase
+    xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"
+    xmlns:ns2="http://www.garmin.com/xmlschemas/UserProfile/v2"
+    xmlns:ns3="http://www.garmin.com/xmlschemas/ActivityExtension/v2"
+    xmlns:ns4="http://www.garmin.com/xmlschemas/ProfileExtension/v1"
+    xmlns:ns5="http://www.garmin.com/xmlschemas/ActivityGoals/v1"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2 http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd">
+    <Activities>
+        <Activity Sport="Walking">
+            <Id>2023-08-29T11:23:08.388Z</Id>
+            <Lap StartTime="2023-08-29T11:23:08.388Z">
+                <Track>
+                    <Trackpoint>
+                        <DistanceMeters>0.0</DistanceMeters>
+                        <Time>2023-08-29T11:23:08.388Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>0.0</DistanceMeters>
+                        <Time>2023-08-29T11:23:21.184Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>34.69702003876261</DistanceMeters>
+                        <Time>2023-08-29T11:25:09.184Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>88.67016232128222</DistanceMeters>
+                        <Time>2023-08-29T11:26:09.344Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>168.9141356511314</DistanceMeters>
+                        <Time>2023-08-29T11:27:09.684Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>251.34021617882138</DistanceMeters>
+                        <Time>2023-08-29T11:28:09.944Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>338.0499461991662</DistanceMeters>
+                        <Time>2023-08-29T11:29:10.283Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>423.7205075335372</DistanceMeters>
+                        <Time>2023-08-29T11:30:10.543Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>508.43703536317264</DistanceMeters>
+                        <Time>2023-08-29T11:31:10.603Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>593.0732736731421</DistanceMeters>
+                        <Time>2023-08-29T11:32:10.783Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>641.5659942157056</DistanceMeters>
+                        <Time>2023-08-29T11:32:45.443Z</Time>
+                    </Trackpoint>
+                    <Trackpoint>
+                        <DistanceMeters>687.8286876007224</DistanceMeters>
+                        <Time>2023-08-29T11:34:32.762Z</Time>
+                    </Trackpoint>
+                </Track>
+                <DistanceMeters>687.8286876007224</DistanceMeters>
+                <TotalTimeSeconds>684.374</TotalTimeSeconds>
+                <Calories>50.567634444444444</Calories>
+                <Intensity>Active</Intensity>
+                <TriggerMethod>Manual</TriggerMethod>
+            </Lap>
+        </Activity>
+    </Activities>
+    <Author xsi:type="Application_t">
+        <Name>Google Fit</Name>
+        <Build>
+            <Version>
+                <VersionMajor>0</VersionMajor>
+                <VersionMinor>0</VersionMinor>
+                <BuildMajor>0</BuildMajor>
+                <BuildMinor>0</BuildMinor>
+            </Version>
+        </Build>
+        <LangID>en</LangID>
+        <PartNumber>000-00000-00</PartNumber>
+    </Author>
+</TrainingCenterDatabase>
